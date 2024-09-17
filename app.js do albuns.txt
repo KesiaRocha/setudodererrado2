@@ -1,0 +1,201 @@
+const express = require("express");
+const cors = require('cors'); // Importar o pacote cors
+const app = express();
+const { MongoClient } = require("mongodb");
+const CRUD = require("./CRUD");
+
+app.use(express.json()); // Middleware para JSON
+
+// Configuração do CORS
+app.use(cors()); // Permite que qualquer origem faça requisições à sua API
+
+const uri = process.env.URI || "mongodb+srv://KesiaRocha:<meucarro16>@cluster0.8pn26.mongodb.net/"; // Substitua pelo URI correto do MongoDB
+const client = new MongoClient(uri);
+const Albuns = client.db("Albuns").collection("albuns"); // Coleção 'albuns'
+
+app.set("json spaces", 4);
+
+// Rota para obter um álbum aleatório
+app.get('/random-album', async (req, res) => {
+  try {
+    const randomAlbum = await CRUD.getRandomAlbun(Albuns);
+    if (randomAlbum) {
+      res.json(randomAlbum);
+    } else {
+      res.status(404).json({ message: 'Álbum não encontrado' });
+    }
+  } catch (error) {
+    console.error('Erro ao buscar álbum aleatório:', error);
+    res.status(500).json({ message: 'Erro ao buscar álbum aleatório', error });
+  }
+});
+
+// Rota para inserir vários álbuns
+app.get("/inserir-albuns", async (req, res) => {
+const albuns = [
+  {
+    link_album: 'https://open.spotify.com/intl-pt/album/41ng9tBJsRNYqaqRDEtrbN'
+  },
+  {
+    link_album: 'https://open.spotify.com/intl-pt/track/7fd3aMiuwHWKsTdZafjOfZ'
+  },
+  {
+   link_album: 'https://open.spotify.com/intl-pt/album/5CCxLQgcI7cVwmgFDlicbP' 
+  },
+  {
+  link_album: 'https://open.spotify.com/intl-pt/album/2pb2RscdByJ8pc7dPT1SY2'
+},
+{
+  link_album: 'https://open.spotify.com/intl-pt/album/4UUICitfodUVCNhzmDFbrO'
+},
+{
+  link_album: 'https://open.spotify.com/intl-pt/album/6kZ42qRrzov54LcAk4onW9'
+},
+{
+  link_album: 'https://open.spotify.com/intl-pt/album/3HCCUaRSjHSFOe4fqE0BiP'
+},
+{
+link_album: 'https://open.spotify.com/intl-pt/album/4oL7pMxnb04uuRI7ReXmuh'
+},
+{
+link_album: 'https://open.spotify.com/intl-pt/album/558tpdCejjVQNFAumRAeQj'
+},
+{
+link_album: 'https://open.spotify.com/intl-pt/album/2lIZef4lzdvZkiiCzvPKj7'
+},
+{
+link_album: 'https://open.spotify.com/intl-pt/album/2wwCc6fcyhp1tfY3J6Javr'
+},
+];
+
+  
+  try {
+    const results = [];
+    for (const album of albuns) {
+      const albumId = album.link_album.split('/').pop(); // Extrai o ID do álbum do link
+      const iframe = `<iframe style="border-radius:12px" src="https://open.spotify.com/embed/album/${albumId}?utm_source=generator" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+
+      // Insere o álbum no banco de dados com o link do iframe
+      const result = await CRUD.insertAlbun(Albuns, { link_album: album.link_album, iframe });
+      results.push(result);
+    }
+    res.status(201).json(results);
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao inserir álbuns", error });
+  }
+});
+
+// Rota para inserir um novo álbum
+app.post("/inserir-album", async (req, res) => {
+  const { link_album } = req.body; // Espera-se que o link do álbum seja enviado no corpo da requisição
+
+  // Cria o iframe com base no link do álbum recebido
+  const albumId = link_album.split('/').pop();
+  const iframe = `<iframe style="border-radius:12px" src="https://open.spotify.com/embed/album/${albumId}?utm_source=generator" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+
+  const novoAlbum = {
+    link_album,
+    iframe
+  };
+
+  try {
+    const result = await CRUD.insertAlbun(Albuns, novoAlbum);
+    res.status(201).json({ message: "Álbum inserido com sucesso!", result });
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao inserir o álbum", error });
+  }
+});
+
+// Rota para obter todos os álbuns
+app.get("/albuns", async (req, res) => {
+  try {
+    const albuns = await CRUD.getAlbuns(Albuns);
+    res.json(albuns);
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao buscar álbuns", error });
+  }
+});
+
+// Rota para atualizar um álbum
+app.put("/update-album", async (req, res) => {
+  const { oldLink, newLink } = req.body; // O corpo da requisição deve conter o antigo e o novo link
+
+  try {
+    const result = await CRUD.updateAlbun(Albuns, oldLink, newLink);
+    res.json({ message: "Álbum atualizado com sucesso!", result });
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao atualizar o álbum", error });
+  }
+});
+
+// Rota para deletar um álbum
+app.delete("/delete-album", async (req, res) => {
+  const { link } = req.body; // O link deve ser enviado no corpo da requisição
+
+  try {
+    const result = await CRUD.deleteAlbun(Albuns, link);
+    res.json({ message: "Álbum deletado com sucesso!", result });
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao deletar o álbum", error });
+  }
+});
+
+
+//AQUI PRA CIMA TA FUNCIONANDO ^^^^^^^^
+
+//AQUI PRA BAIXO É SEGREDO 
+
+
+
+
+
+
+
+
+// // Funções CRUD e aleatorização para podcasts
+// app.get('/random-podcast', async (req, res) => {
+//   try {
+//     const randomPodcast = await CRUD.getRandomPodcast(Podcasts);
+//     if (randomPodcast) {
+//       res.json(randomPodcast);
+//     } else {
+//       res.status(404).json({ message: 'Podcast não encontrado' });
+//     }
+//   } catch (error) {
+//     res.status(500).json({ message: 'Erro ao buscar podcast aleatório', error });
+//   }
+// });
+
+// app.post("/inserir-podcasts", async (req, res) => {
+//   const podcasts = [
+//     { link_podcast: 'https://open.spotify.com/show/14jalMOh1Jr77eTRUdN6X9' },
+//     // Adicione mais podcasts conforme necessário
+//   ];
+
+//   try {
+//     const results = [];
+//     for (const podcast of podcasts) {
+//       const podcastId = podcast.link_podcast.split('/').pop();
+//       const iframe = `<iframe src="https://open.spotify.com/embed/episode/${podcastId}" width="100%" height="352" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+//       await CRUD.insertPodcast(Podcasts, { link_podcast: podcast.link_podcast, iframe });
+//       results.push({ iframe });
+//     }
+//     res.status(201).json(results);
+//   } catch (error) {
+//     res.status(500).json({ message: "Erro ao inserir podcasts", error });
+//   }
+// });
+
+// // Outras rotas CRUD para músicas e podcasts
+
+// app.listen(3000, () => {
+//   console.log("Servidor ativado na porta 3000");
+// });
+
+
+
+
+// // Iniciar o servidor
+// app.listen(3000, () => {
+//   console.log("Servidor ativado na porta 3000");
+// });
